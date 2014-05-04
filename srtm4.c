@@ -6,12 +6,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <tiffio.h>
 
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
-#include "iio.h"
 
 
 #define SRTM4_URL_ASC "ftp://xftp.jrc.it/pub/srtmV4/arcasci/srtm_%02d_%02d.zip"
@@ -22,8 +21,48 @@
 #define SRTM4_TIF "%s/srtm_%02d_%02d.tif"
 
 
-// header of the wrapper function to GeoigraphicLib::Geoid
+// headers
 void geoid_height(double *out, double lat, double lon);
+
+
+// read a TIFF int16 image
+static int16_t *readTIFF(TIFF *tif, int *nx, int *ny)
+{
+    uint32 w = 0, h = 0;
+    int16_t *data, *line;
+
+    TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &w);
+    TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &h);
+    assert((size_t) TIFFScanlineSize(tif) == w * sizeof(int16_t));
+
+    data = (int16_t *) malloc(w*h*sizeof(int16_t));
+    *nx = (int) w;
+    *ny = (int) h;
+    for (int i = 0; i < h; i++) {
+        line = data + i * w;
+        if (TIFFReadScanline(tif, line, i, 0) < 0) {
+            fprintf(stderr, "readTIFF: error reading row %u\n", i);
+            free(data);
+            return NULL;
+        }
+    }
+
+    return data;
+}
+
+// load TIFF int16 image
+int16_t *read_tiff_int16_gray(const char *fname, int *nx, int *ny)
+{
+    int16_t *data;
+    TIFF *tif = TIFFOpen(fname, "r");
+    if (!tif) {
+        fprintf(stderr, "Unable to read TIFF file %s\n", fname);
+        return NULL;
+    }
+    data = readTIFF(tif, nx, ny);
+    TIFFClose(tif);
+    return data;
+}
 
 // download the contents of an url into a file
 static int download(const char *to_file, const char *from_url)
@@ -254,6 +293,12 @@ static float *malloc_tile_data(char *tile_filename)
 	return t;
 }
 
+static void cast_int16_to_float(float *out, int16_t *in, int n)
+{
+    for (int i = 0; i < n; i++)
+        out[i] = (float) in[i];
+}
+
 static float *global_table_of_tiles[360][180] = {{0}};
 
 static float *produce_tile(int tlon, int tlat, bool tif)
@@ -267,9 +312,17 @@ static float *produce_tile(int tlon, int tlat, bool tif)
 			return NULL;
         if (tif) {
             int w, h;
-            t = iio_read_image_float(fname, &w, &h);
-            if ((w != 6000) || (h != 6000))
-               fprintf(stderr, "produce_tile: tif srtm file isn't 6000x6000\n");
+            int16_t *tmp = read_tiff_int16_gray(fname, &w, &h);
+            if (NULL == tmp) {
+                fprintf(stderr, "failed to read the tif file\n");
+                abort();
+            }
+            if ((w != 6000) || (h != 6000)) {
+                fprintf(stderr, "produce_tile: tif srtm file isn't 6000x6000\n");
+                abort();
+            }
+            t = malloc(w*h*sizeof*t);
+            cast_int16_to_float(t, tmp, w*h);
         }
         else
 		    t = malloc_tile_data(fname);
