@@ -54,6 +54,7 @@ static int16_t *readTIFF(TIFF *tif, int *nx, int *ny)
 int16_t *read_tiff_int16_gray(const char *fname, int *nx, int *ny)
 {
     int16_t *data;
+    TIFFSetWarningHandler(NULL); //suppress warnings
     TIFF *tif = TIFFOpen(fname, "r");
     if (!tif) {
         fprintf(stderr, "Unable to read TIFF file %s\n", fname);
