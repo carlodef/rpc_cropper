@@ -171,7 +171,7 @@ def crop_rpc_and_image(out_dir, img, rpc, rpc_ref, x, y, w, h):
     # do the crop
     out_r = rpc_apply_crop_to_rpc_model(r, x, y, w, h)
     out_r.write(out_rpc_file)
-    os.system('gdal_translate -srcwin %d %d %d %d "%s" "%s"' % (x, y, w, h, img, out_img_file))
+    common.run('gdal_translate -srcwin %d %d %d %d "%s" "%s"' % (x, y, w, h, img, out_img_file))
 
     # do the preview: it has to fit a 1366x768 rectangle
     w = float(w)
@@ -183,8 +183,10 @@ def crop_rpc_and_image(out_dir, img, rpc, rpc_ref, x, y, w, h):
             f = h/768
         tmp = common.tmpfile('.tif')
         common.image_zoom_gdal(out_img_file, f, tmp, w, h)
-        os.system('gdal_translate -of jpeg -ot Byte -scale %s %s' % (tmp, out_prv_file))
-        os.system('rm %s.aux.xml' % out_prv_file)
+        common.run('gdal_translate -of jpeg -ot Byte -scale %s %s' % (tmp, out_prv_file))
+    else:
+        common.run('gdal_translate -of jpeg -ot Byte -scale %s %s' % (out_img_file, out_prv_file))
+    common.run('rm %s.aux.xml' % out_prv_file)
 
 
 
@@ -224,7 +226,8 @@ def main():
        exit(1)
 
     # create output dir
-    os.system('mkdir -p %s' % out_dir)
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
 
     # do the crops
     crop_rpc_and_image.counter = 0 # used to name the output files
