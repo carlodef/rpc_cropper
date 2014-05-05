@@ -227,5 +227,5 @@ def image_zoom_gdal(im, f, out=None, w=None, h=None):
     run('gdal_translate -a_ullr 0 0 %d %d %s %s' % (w/float(f), -h/float(f), im, tmp))
 
     # do the zoom with gdalwarp
-    run('gdalwarp -r average -ts %d %d %s %s' %  (w/float(f), h/float(f), tmp, out))
+    run('gdalwarp -ts %d %d %s %s' %  (w/float(f), h/float(f), tmp, out))
     return out
