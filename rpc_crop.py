@@ -166,7 +166,7 @@ def crop_rpc_and_image(out_dir, img, rpc, rpc_ref, x, y, w, h):
     s = "_%02d" % crop_rpc_and_image.counter
     out_img_file = os.path.join(out_dir, "img%s.tif" % s)
     out_rpc_file = os.path.join(out_dir, "rpc%s.xml" % s)
-    out_prv_file = os.path.join(out_dir, "prv%s.jpg" % s)
+    out_prv_file = os.path.join(out_dir, "prv%s.png" % s)
 
     # do the crop
     out_r = rpc_apply_crop_to_rpc_model(r, x, y, w, h)
@@ -183,9 +183,9 @@ def crop_rpc_and_image(out_dir, img, rpc, rpc_ref, x, y, w, h):
             f = h/768
         tmp = common.tmpfile('.tif')
         common.image_zoom_gdal(out_img_file, f, tmp, w, h)
-        common.run('gdal_translate -of jpeg -ot Byte -scale %s %s' % (tmp, out_prv_file))
+        common.run('gdal_translate -of png -ot Byte -scale %s %s' % (tmp, out_prv_file))
     else:
-        common.run('gdal_translate -of jpeg -ot Byte -scale %s %s' % (out_img_file, out_prv_file))
+        common.run('gdal_translate -of png -ot Byte -scale %s %s' % (out_img_file, out_prv_file))
     common.run('rm %s.aux.xml' % out_prv_file)
 
 
