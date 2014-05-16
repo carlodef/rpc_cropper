@@ -154,7 +154,7 @@ def mouseButtons(button, state, x,y):
        else:
            os.system('./rpc_crop.py %s "%s" "%s" "%s" "%s" "%s" "%s" %d %d %d %d' % (out_dir, img1, rpc1, img2, rpc2, img3, rpc3, x2, y2, w2, h2))
 
-       os.system('v.py %s/prv_??.jpg &' % out_dir)
+       os.system('v.py %s/prv_??.png &' % out_dir)
        #exit(0)
 
 
