@@ -300,11 +300,12 @@ static void cast_int16_to_float(float *out, int16_t *in, int n)
         out[i] = (float) in[i];
 }
 
-static float *global_table_of_tiles[360][180] = {{0}};
+static float *global_table_of_tiles[72][24] = {{NULL}};
+static float *geoid_height_samples = NULL;
 
 static float *produce_tile(int tlon, int tlat, bool tif)
 {
-	float *t = global_table_of_tiles[tlon][tlat];
+	float *t = global_table_of_tiles[tlon-1][tlat-1];
 	if (!t) {
 		char *fname = get_tile_filename(tlon, tlat, tif);
 		if (!file_exists(fname))
@@ -327,7 +328,7 @@ static float *produce_tile(int tlon, int tlat, bool tif)
         }
         else
 		    t = malloc_tile_data(fname);
-		global_table_of_tiles[tlon][tlat] = t;
+		global_table_of_tiles[tlon-1][tlat-1] = t;
 	}
 	return t;
 }
@@ -419,8 +420,8 @@ double srtm4_nn_wrt_ellipsoid(double lon, double lat)
 
 void srtm4_free_tiles(void)
 {
-	for (int j = 0; j < 360; j++)
-	for (int i = 0; i < 180; i++)
+	for (int j = 0; j < 72; j++)
+	for (int i = 0; i < 24; i++)
 		if (global_table_of_tiles[j][i])
 			free(global_table_of_tiles[j][i]);
 }
