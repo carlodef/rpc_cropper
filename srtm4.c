@@ -51,7 +51,7 @@ static int16_t *readTIFF(TIFF *tif, int *nx, int *ny)
 }
 
 // load TIFF int16 image
-int16_t *read_tiff_int16_gray(const char *fname, int *nx, int *ny)
+static int16_t *read_tiff_int16_gray(const char *fname, int *nx, int *ny)
 {
     int16_t *data;
     TIFFSetWarningHandler(NULL); //suppress warnings
@@ -247,7 +247,7 @@ static char *my_strtok(char *str)
 	return begin;
 }
 
-// parse a tile file into memory
+// parse an ASCII srtm tile file into memory
 // (this function is ugly due to the error checking)
 static float *malloc_tile_data(char *tile_filename)
 {
