@@ -193,13 +193,18 @@ def crop_rpc_and_image(out_dir, img, rpc, rpc_ref, x, y, w, h):
 def main():
 
     # verify input
-    if len(sys.argv) in [10, 12]:
+    if len(sys.argv) in [8, 10, 12]:
        out_dir = sys.argv[1]
        img1 = sys.argv[2]
        rpc1 = sys.argv[3]
-       img2 = sys.argv[4]
-       rpc2 = sys.argv[5]
-       if len(sys.argv) == 10:
+       if len(sys.argv) == 8:
+           x = float(sys.argv[4])
+           y = float(sys.argv[5])
+           w = float(sys.argv[6])
+           h = float(sys.argv[7])
+       elif len(sys.argv) == 10:
+           img2 = sys.argv[4]
+           rpc2 = sys.argv[5]
            x = float(sys.argv[6])
            y = float(sys.argv[7])
            w = float(sys.argv[8])
@@ -214,14 +219,14 @@ def main():
     else:
        print "Tool to crop an image and its RPC."
        print "Incorrect syntax, use:"
-       print "  >  %s out_dir img1 rpc1 img2 rpc2 [img3 rpc3] x y w h" % sys.argv[0]
+       print "  >  %s out_dir img1 rpc1 [img2 rpc2 [img3 rpc3]] x y w h" % sys.argv[0]
        exit(1)
 
     try:
        os.stat(img1)
        os.stat(rpc1)
-       os.stat(img2)
-       os.stat(rpc2)
+#       os.stat(img2)
+#       os.stat(rpc2)
     except OSError:
        exit(1)
 
@@ -232,7 +237,8 @@ def main():
     # do the crops
     crop_rpc_and_image.counter = 0 # used to name the output files
     crop_rpc_and_image(out_dir, img1, rpc1, rpc1, x, y, w, h)
-    crop_rpc_and_image(out_dir, img2, rpc2, rpc1, x, y, w, h)
+    if 'img2' in locals() and 'rpc2' in locals():
+        crop_rpc_and_image(out_dir, img2, rpc2, rpc1, x, y, w, h)
     if 'img3' in locals() and 'rpc3' in locals():
         crop_rpc_and_image(out_dir, img3, rpc3, rpc1, x, y, w, h)
 
