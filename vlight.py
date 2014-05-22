@@ -8,7 +8,7 @@ from OpenGL.GLU import *
 from OpenGL.GL import *
 from PIL import Image
 
-name = 'select a region'
+name = 'viewer (press spacebar/backspace to navigate)'
 
 # global variables for the mouse
 x0=0; y0=0; w0=0; h0=0; b0state='';
@@ -19,10 +19,6 @@ ix,iy=100,100
 dx,dy=0,0
 imageData=0
 I1='' # preview
-img1=''
-rpc1=''
-img2=''
-rpc2=''
 
 
 def loadImage(imageName):
@@ -137,27 +133,6 @@ def mouseButtons(button, state, x,y):
        w0,h0 = x-x0,y-y0
        b0state='released'
        print x0+dx, y0+dy, x+dx, y+dy
-       global I1, img1, img2, img3, rpc1, rpc2, rpc3, out_dir
-
-       import common
-       # read preview/full images dimensions
-       nc, nr = common.image_size_gdal(img1)
-       nc_preview, nr_preview = common.image_size_gdal(I1)
-
-       # rescale according to preview/full ratio
-       x2= int(x0*nc/nc_preview)
-       y2= int(y0*nr/nr_preview)
-       w2= int(w0*nc/nc_preview)
-       h2= int(h0*nr/nr_preview)
-       if rpc2 is None:
-           os.system('./rpc_crop.py %s "%s" "%s" %d %d %d %d' % (out_dir, img1, rpc1, x2, y2, w2, h2))
-       elif rpc3 is None:
-           os.system('./rpc_crop.py %s "%s" "%s" "%s" "%s" %d %d %d %d' % (out_dir, img1, rpc1, img2, rpc2, x2, y2, w2, h2))
-       else:
-           os.system('./rpc_crop.py %s "%s" "%s" "%s" "%s" "%s" "%s" %d %d %d %d' % (out_dir, img1, rpc1, img2, rpc2, img3, rpc3, x2, y2, w2, h2))
-
-       os.system('./vlight.py %s/prv_??.png &' % out_dir)
-       #exit(0)
 
 
 
@@ -167,6 +142,21 @@ def keyboard(key, x, y):
        exit(0)
 #    print ord(key)
 
+
+    # handle spece/backspace
+    global I1, cidx
+    if key==' ':      # space
+       cidx = (cidx+1) % len(I1)
+    if ord(key)==127: # backspace
+       cidx = (cidx-1) % len(I1)
+
+    # read the image
+    global ix,iy,imageData
+    (imageData,ix,iy) = loadImage(I1[cidx])
+    glutReshapeWindow(ix,iy)
+    # setup texture
+    setupTexture(imageData,ix,iy)
+    glutPostRedisplay()
 
 
 # handle arrow keys
@@ -189,27 +179,15 @@ def keyboard2(key, x, y):
 
 
 def main():
-    global I1, img1, img2, img3, rpc1, rpc2, rpc3, out_dir
+    global I1, cidx
 
     # verify input
-    if len(sys.argv) in [5, 7, 9]:
-       out_dir = sys.argv[1]
-       I1 = sys.argv[2]
-       img1 = sys.argv[3]
-       rpc1 = sys.argv[4]
-       img2 = None
-       rpc2 = None
-       img3 = None
-       rpc3 = None
-       if len(sys.argv) > 5:
-          img2 = sys.argv[5]
-          rpc2 = sys.argv[6]
-       if len(sys.argv) == 9:
-          img3 = sys.argv[7]
-          rpc3 = sys.argv[8]
+    if len(sys.argv) > 1:
+       I1 = sys.argv[1:]
+       cidx=0
     else:
        print "Incorrect syntax, use:"
-       print "  > %s out_dir preview.jpg img1.tif rpc1.xml [img2.tif rpc2.xml [img3.tif rpc3.xml]]" % sys.argv[0]
+       print "  > %s out_dir img1 img2 ..." % sys.argv[0]
        sys.exit(1)
 
     # globals
@@ -230,7 +208,7 @@ def main():
     glutMotionFunc(mouseMotion);
 
     # read the image
-    (imageData,ix,iy) = loadImage(I1)
+    (imageData,ix,iy) = loadImage(I1[cidx])
 
     glutReshapeWindow(ix,iy)
 
