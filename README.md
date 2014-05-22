@@ -26,16 +26,17 @@ Nothing to do, the only needed binary will be compiled on the fly during the fir
 call to one of the python scripts.
 
 ## Known dependencies
-* python 2.7
+* python 2.7 or 2.6
 * numpy
 * pyopengl
 * gdal
+* g++
 * libtiff
 
 On Ubuntu 13.10, all the needed dependencies can be installed through the
 package manager:
 
-    $ sudo apt-get install freeglut3 python-opengl python-numpy gdal-bin libtiff4-dev
+    $ sudo apt-get install python-opengl python-numpy gdal-bin libtiff4-dev g++
 
 Note that the use of SRTM data requires an internet connection, at least the
 first time you run this tool on a dataset.
