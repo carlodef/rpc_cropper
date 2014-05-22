@@ -210,6 +210,8 @@ def main():
            w = float(sys.argv[8])
            h = float(sys.argv[9])
        else:
+           img2 = sys.argv[4]
+           rpc2 = sys.argv[5]
            img3 = sys.argv[6]
            rpc3 = sys.argv[7]
            x = float(sys.argv[8])
