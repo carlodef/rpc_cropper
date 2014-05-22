@@ -187,7 +187,7 @@ def main():
        cidx=0
     else:
        print "Incorrect syntax, use:"
-       print "  > %s out_dir img1 img2 ..." % sys.argv[0]
+       print "  > %s img1 img2 ..." % sys.argv[0]
        sys.exit(1)
 
     # globals
