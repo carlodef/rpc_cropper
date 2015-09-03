@@ -178,7 +178,7 @@ def altitude_range(rpc, x, y, w, h, margin_top, margin_bottom):
     # compute srtm height on all these points
     # these altitudes are computed with respect to the WGS84 ellipsoid
     import os
-    srtm = common.run_binary_on_list_of_points(ellipsoid_points, 'srtm4')
+    srtm = common.run_binary_on_list_of_points(ellipsoid_points, 'srtm4',
           option=None, binary_workdir=os.path.dirname(__file__))
     srtm = np.ravel(srtm)
 
