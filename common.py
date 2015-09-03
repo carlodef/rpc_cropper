@@ -162,7 +162,7 @@ def image_crop_TIFF(im, x, y, w, h, out=None):
     return out
 
 
-def run_binary_on_list_of_points(points, binary, option=None):
+def run_binary_on_list_of_points(points, binary, option=None, binary_workdir=None):
     """
     Runs a binary that reads its input on stdin.
 
@@ -171,6 +171,7 @@ def run_binary_on_list_of_points(points, binary, option=None):
         binary: path to the binary. It is supposed to write one output value on
             stdout for each input point
         option: optional option to pass to the binary
+        binary_workdir: optional workdir for the binary to be launched
 
     Returns:
         a numpy array containing all the output points, one per line.
@@ -179,12 +180,14 @@ def run_binary_on_list_of_points(points, binary, option=None):
     pts_file = tmpfile('.txt')
     np.savetxt(pts_file, points, '%.18f')
     p1 = subprocess.Popen(['cat', pts_file], stdout = subprocess.PIPE)
+    if binary_workdir == None:
+        binary_workdir = os.getcwd()
     if option:
         p2 = subprocess.Popen([binary, option], stdin = p1.stdout, stdout =
-            subprocess.PIPE)
+            subprocess.PIPE, cwd = binary_workdir)
     else:
         p2 = subprocess.Popen([binary], stdin = p1.stdout, stdout =
-            subprocess.PIPE)
+            subprocess.PIPE, cwd = binary_workdir)
 
     # recover output values: first point first, then loop over all the others
     line = p2.stdout.readline()
