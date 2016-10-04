@@ -1,7 +1,9 @@
-# Copyright (C) 2013, Carlo de Franchis <carlodef@gmail.com>
-# Copyright (C) 2013, Gabriele Facciolo <gfacciol@gmail.com>
+# Copyright (C) 2015, Carlo de Franchis <carlo.de-franchis@cmla.ens-cachan.fr>
+# Copyright (C) 2015, Gabriele Facciolo <facciolo@cmla.ens-cachan.fr>
+# Copyright (C) 2015, Enric Meinhardt <enric.meinhardt@cmla.ens-cachan.fr>
 
-import sys
+
+from __future__ import print_function
 import copy
 import numpy as np
 from xml.etree.ElementTree import ElementTree
@@ -165,39 +167,43 @@ class RPCModel:
                 elif a[1] == "DEN": self.inverseColDen[a[3]] = float(val)
 
     def read_rpc_xml(self, tree):
-        # determine wether it's a pleiades or worldview image
+        # determine wether it's a pleiades, spot-6 or worldview image
         a = tree.find('Metadata_Identification/METADATA_PROFILE') # PHR_SENSOR
         b = tree.find('IMD/IMAGE/SATID') # WorldView
         if a is not None:
-            if a.text == 'PHR_SENSOR':
+            if a.text in ['PHR_SENSOR', 'S6_SENSOR', 'S7_SENSOR']:
                 self.read_rpc_pleiades(tree)
             else:
-                print 'unknown sensor type'
+                print('unknown sensor type')
         elif b is not None:
             if b.text == 'WV02' or b.text == 'WV01':
                 self.read_rpc_worldview(tree)
             else:
-                print 'unknown sensor type'
+                print('unknown sensor type')
+
+    def parse_coeff(self, element, prefix, indices):
+        tab = []
+        for x in indices:
+            tab.append(float(element.find("%s_%s" % (prefix, str(x))).text))
+        return tab
 
     def read_rpc_pleiades(self, tree):
         # direct model
         d = tree.find('Rational_Function_Model/Global_RFM/Direct_Model')
-        direct = [float(child.text) for child in d]
-        self.directLonNum = direct[:20]
-        self.directLonDen = direct[20:40]
-        self.directLatNum = direct[40:60]
-        self.directLatDen = direct[60:80]
-        self.directBias   = direct[80:]
-
+        self.directLonNum = self.parse_coeff(d, "SAMP_NUM_COEFF", xrange(1, 21))
+        self.directLonDen = self.parse_coeff(d, "SAMP_DEN_COEFF", xrange(1, 21))
+        self.directLatNum = self.parse_coeff(d, "LINE_NUM_COEFF", xrange(1, 21))
+        self.directLatDen = self.parse_coeff(d, "LINE_DEN_COEFF", xrange(1, 21))
+        self.directBias = self.parse_coeff(d, "ERR_BIAS", ['X', 'Y'])
+        
         # inverse model
         i = tree.find('Rational_Function_Model/Global_RFM/Inverse_Model')
-        inverse = [float(child.text) for child in i]
-        self.inverseColNum = inverse[:20]
-        self.inverseColDen = inverse[20:40]
-        self.inverseLinNum = inverse[40:60]
-        self.inverseLinDen = inverse[60:80]
-        self.inverseBias   = inverse[80:]
-
+        self.inverseColNum = self.parse_coeff(i, "SAMP_NUM_COEFF", xrange(1, 21))
+        self.inverseColDen = self.parse_coeff(i, "SAMP_DEN_COEFF", xrange(1, 21))
+        self.inverseLinNum = self.parse_coeff(i, "LINE_NUM_COEFF", xrange(1, 21))
+        self.inverseLinDen = self.parse_coeff(i, "LINE_DEN_COEFF", xrange(1, 21))
+        self.inverseBias = self.parse_coeff(i, "ERR_BIAS", ['ROW', 'COL'])
+        
         # validity domains
         v = tree.find('Rational_Function_Model/Global_RFM/RFM_Validity')
         vd = v.find('Direct_Model_Validity_Domain')
@@ -213,8 +219,11 @@ class RPCModel:
         self.lastLat  = float(vi.find('LAST_LAT').text)
 
         # scale and offset
-        self.linOff   = float(v.find('LINE_OFF').text)
-        self.colOff   = float(v.find('SAMP_OFF').text)
+        # the -1 in line and column offsets is due to Pleiades RPC convention
+        # that states that the top-left pixel of an image has coordinates
+        # (1, 1)
+        self.linOff   = float(v.find('LINE_OFF').text) - 1
+        self.colOff   = float(v.find('SAMP_OFF').text) - 1
         self.latOff   = float(v.find('LAT_OFF').text)
         self.lonOff   = float(v.find('LONG_OFF').text)
         self.altOff   = float(v.find('HEIGHT_OFF').text)
@@ -359,7 +368,7 @@ class RPCModel:
             y2 = apply_rfm(self.inverseLinNum, self.inverseLinDen, lat + EPS, lon, cAlt)
             #n += 1
 
-        #print 'direct_estimate_iterative: %d iterations' % n
+        #print('direct_estimate_iterative: %d iterations' % n)
 
         if return_normalized:
            return lon, lat, cAlt
@@ -562,8 +571,8 @@ if __name__ == '__main__':
     rpc = RPCModel('../pleiades_data/rpc/haiti/rpc01.xml')
     col, lin = 20000, 8000
     alt = 90
-    print 'col={col}, lin={lin}, alt={alt}'.format(col=col, lin=lin, alt=alt)
+    print('col={col}, lin={lin}, alt={alt}'.format(col=col, lin=lin, alt=alt))
     lon, lat, alt = rpc.direct_estimate(col, lin, alt)
-    print 'lon={lon}, lat={lat}, alt={alt}'.format(lon=lon, lat=lat, alt=alt)
+    print('lon={lon}, lat={lat}, alt={alt}'.format(lon=lon, lat=lat, alt=alt))
     col, lin, alt = rpc.inverse_estimate(lon, lat, alt)
-    print 'col={col}, lin={lin}, alt={alt}'.format(col=col, lin=lin, alt=alt)
+    print('col={col}, lin={lin}, alt={alt}'.format(col=col, lin=lin, alt=alt))
