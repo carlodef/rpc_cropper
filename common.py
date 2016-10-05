@@ -2,11 +2,14 @@
 # Copyright (C) 2013, Gabriele Facciolo <gfacciol@gmail.com>
 
 # This Python file uses the following encoding: utf-8
+from __future__ import print_function
 import numpy as np
 import os
 import sys
 import subprocess
 import tempfile
+import urlparse
+import urllib2
 import re
 
 
@@ -47,7 +50,7 @@ def run(cmd):
     Both stdout and stderr of the shell in which the command is run are those
     of the parent process.
     """
-    print cmd
+    print(cmd)
     subprocess.call(cmd, shell=True, stdout=sys.stdout, stderr=subprocess.STDOUT,
         env=os.environ)
     return
@@ -77,7 +80,7 @@ def image_size_gdal(im):
             nr = int(out[3])
             return (nc, nr)
     except IOError:
-        print "image_size_gdal: the input file %s doesn't exist" % str(im)
+        print("image_size_gdal: the input file %s doesn't exist" % str(im))
         sys.exit()
 
 
@@ -91,8 +94,8 @@ def image_size_tiffinfo(im):
         a tuple of size 2, giving width and height
     """
     if not im.lower().endswith('.tif'):
-        print "image_size_tiffinfo function works only with TIF files"
-        print "use image_size_gdal or image_size instead"
+        print("image_size_tiffinfo function works only with TIF files")
+        print("use image_size_gdal or image_size instead")
         sys.exit()
     try:
         with open(im):
@@ -109,7 +112,7 @@ def image_size_tiffinfo(im):
             nr = int(out[5])
             return (nc, nr)
     except IOError:
-        print "image_size_tiffinfo: the input file %s doesn't exist" % str(im)
+        print("image_size_tiffinfo: the input file %s doesn't exist" % str(im))
         sys.exit()
 
 
@@ -143,7 +146,7 @@ def image_crop_TIFF(im, x, y, w, h, out=None):
     tried to use tiffcrop but it fails.
     """
     if (int(x) != x or int(y) != y):
-        print 'Warning: image_crop_TIFF will round the coordinates of your crop'
+        print('Warning: image_crop_TIFF will round the coordinates of your crop')
 
     if out is None:
         out = tmpfile('.tif')
@@ -155,8 +158,8 @@ def image_crop_TIFF(im, x, y, w, h, out=None):
                 y, w, h, shellquote(im), shellquote(out)))
 
     except IOError:
-        print """image_crop_TIFF: input image not found! Verify your paths to
-                 Pleiades full images"""
+        print("""image_crop_TIFF: input image not found! Verify your paths to
+                 Pleiades full images""")
         sys.exit()
 
     return out
@@ -232,3 +235,66 @@ def image_zoom_gdal(im, f, out=None, w=None, h=None):
     # do the zoom with gdalwarp
     run('gdalwarp -ts %d %d %s %s' %  (w/float(f), h/float(f), tmp, out))
     return out
+
+
+def url_with_authorization_header(from_url):
+    """
+    Add authorization header
+
+    Args:
+        from_url: url of the file to download
+    """
+    scheme, netloc, path, param, query = urlparse.urlsplit(from_url)
+    if "@" in netloc:
+        userinfo = netloc.rsplit("@",1)[0]
+        if ":" in userinfo:
+            username = userinfo.rsplit(":",1)[0]
+            password = userinfo.rsplit(":",1)[1]
+            netloc = netloc.rsplit("@",1)[1]
+
+            from_url = urlparse.urlunsplit((scheme, netloc, path, param, query))
+
+            if username != None and password != None:
+                request = urllib2.Request(from_url)
+                base64string = base64.encodestring('%s:%s' % (username, password)).replace('\n', '')
+                request.add_header("Authorization", "Basic %s" % base64string)
+                from_url = request
+
+    return from_url
+
+
+def download(to_file, from_url):
+    """
+    Download a file from the internet.
+
+    Args:
+        to_file: path where to store the downloaded file
+        from_url: url of the file to download
+    """
+    f = open(to_file, 'wb')
+    file_size_dl = 0
+    block_sz = 8192
+
+    try:
+        u = urllib2.urlopen(from_url)
+        meta = u.info()
+        file_size = int(meta.getheaders("Content-Length")[0])
+        print("Downloading: %s Bytes: %s" % (to_file, file_size))
+
+        while True:
+            buffer = u.read(block_sz)
+            if not buffer:
+                break
+
+            file_size_dl += len(buffer)
+            f.write(buffer)
+            status = r"%10d  [%3.2f%%]" % (file_size_dl, file_size_dl * 100. / file_size)
+            status = status + chr(8)*(len(status)+1)
+            print(status, end=" ")
+
+    except urllib2.URLError as e:
+        print("Download failed: ", e)
+
+    f.close()
+
+

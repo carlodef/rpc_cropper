@@ -9,6 +9,7 @@ import sys
 
 import rpc_model
 import rpc_utils
+import srtm
 import common
 
 
@@ -235,6 +236,10 @@ def main():
     # create output dir
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
+
+    # download needed srtm files
+    for s in srtm.list_srtm_tiles(rpc1, x, y, w, h):
+        srtm.get_srtm_tile(s, srtm.cfg['srtm_dir'])
 
     # do the crops
     crop_rpc_and_image.counter = 0 # used to name the output files
