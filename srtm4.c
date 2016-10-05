@@ -12,14 +12,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-
-//#define SRTM4_URL_ASC "ftp://xftp.jrc.it/pub/srtmV4/arcasci/srtm_%02d_%02d.zip"
-//#define SRTM4_URL_TIF "ftp://xftp.jrc.it/pub/srtmV4/tiff/srtm_%02d_%02d.zip"
-#define SRTM4_URL_ASC "--http-user=data_public --http-password=GDdci http://data.cgiar-csi.org/srtm/tiles/ASCII/srtm_%02d_%02d.zip"
-#define SRTM4_URL_TIF "--http-user=data_public --http-password=GDdci http://data.cgiar-csi.org/srtm/tiles/GeoTIFF/srtm_%02d_%02d.zip"
+#define NO_DATA NAN
 #define SRTM4_ASC "%s/srtm_%02d_%02d.asc"
 #define SRTM4_TIF "%s/srtm_%02d_%02d.tif"
-
 
 // headers
 void geoid_height(double *out, double lat, double lon);
@@ -51,7 +46,7 @@ static int16_t *readTIFF(TIFF *tif, int *nx, int *ny)
 }
 
 // load TIFF int16 image
-static int16_t *read_tiff_int16_gray(const char *fname, int *nx, int *ny)
+int16_t *read_tiff_int16_gray(const char *fname, int *nx, int *ny)
 {
     int16_t *data;
     TIFFSetWarningHandler(NULL); //suppress warnings
@@ -63,16 +58,6 @@ static int16_t *read_tiff_int16_gray(const char *fname, int *nx, int *ny)
     data = readTIFF(tif, nx, ny);
     TIFFClose(tif);
     return data;
-}
-
-// download the contents of an url into a file
-static int download(const char *to_file, const char *from_url)
-{
-	int nbuf = 2*FILENAME_MAX;
-	char buf[nbuf];
-	snprintf(buf, nbuf, "wget %s -O %s", from_url, to_file);
-	int r = system(buf);
-	return r;
 }
 
 // return the name of the cache directory
@@ -140,30 +125,6 @@ static bool file_exists(const char *fname)
 		return true;
 	}
 	return false;
-}
-
-static void download_tile_file(int tlon, int tlat, bool tif)
-{
-	int n = FILENAME_MAX;
-	char url[n], zipname[n];
-
-    // use TIF or ASC url according to boolean param 'tif'
-    if (tif)
-	    snprintf(url, n, SRTM4_URL_TIF, tlon, tlat);
-    else
-	    snprintf(url, n, SRTM4_URL_ASC, tlon, tlat);
-
-	snprintf(zipname, n, "%s/tmp.zip", cachedir());
-	int rd = download(zipname, url);
-	if (0 == rd) {
-		char cmd[n];
-		snprintf(cmd, n, "unzip -qq -o %s -d %s", zipname, cachedir());
-		rd = system(cmd);
-		if (rd) {
-			fprintf(stderr,"failed unzipping file %s\n", zipname);
-		}
-		// TODO: do something if unzip fails
-	}
 }
 
 static char *get_tile_filename(int tlon, int tlat, bool tif)
@@ -247,7 +208,7 @@ static char *my_strtok(char *str)
 	return begin;
 }
 
-// parse an ASCII srtm tile file into memory
+// parse a tile file into memory
 // (this function is ugly due to the error checking)
 static float *malloc_tile_data(char *tile_filename)
 {
@@ -300,18 +261,17 @@ static void cast_int16_to_float(float *out, int16_t *in, int n)
         out[i] = (float) in[i];
 }
 
-static float *global_table_of_tiles[72][24] = {{NULL}};
-static float *geoid_height_samples = NULL;
+static float *global_table_of_tiles[360][180] = {{0}};
 
 static float *produce_tile(int tlon, int tlat, bool tif)
 {
-	float *t = global_table_of_tiles[tlon-1][tlat-1];
+	float *t = global_table_of_tiles[tlon][tlat];
 	if (!t) {
 		char *fname = get_tile_filename(tlon, tlat, tif);
-		if (!file_exists(fname))
-			download_tile_file(tlon, tlat, tif);
-		if (!file_exists(fname))
-			return NULL;
+		if (!file_exists(fname)) {
+            fprintf(stderr, "WARNING: this srtm tile is not available\n");
+            return NULL;
+        }
         if (tif) {
             int w, h;
             int16_t *tmp = read_tiff_int16_gray(fname, &w, &h);
@@ -328,7 +288,7 @@ static float *produce_tile(int tlon, int tlat, bool tif)
         }
         else
 		    t = malloc_tile_data(fname);
-		global_table_of_tiles[tlon-1][tlat-1] = t;
+		global_table_of_tiles[tlon][tlat] = t;
 	}
 	return t;
 }
@@ -378,29 +338,44 @@ static float nearest_neighbor_interpolation_at(float *x,
 
 double srtm4(double lon, double lat)
 {
+	if (lat > 60 || lat < -60) {
+        return NO_DATA;
+    }
 	int tlon, tlat;
 	float xlon, xlat;
 	get_tile_index_and_position(&tlon, &tlat, &xlon, &xlat, lon, lat);
 	float *t = produce_tile(tlon, tlat, true);
-	return bilinear_interpolation_at(t, 6000, 6000, xlon, xlat);
+    if (t == NULL)
+        return NO_DATA;
+    else
+	    return bilinear_interpolation_at(t, 6000, 6000, xlon, xlat);
 }
 
 double srtm4_nn(double lon, double lat)
 {
+	if (lat > 60 || lat < -60)
+        return NO_DATA;
 	int tlon, tlat;
 	float xlon, xlat;
 	get_tile_index_and_position(&tlon, &tlat, &xlon, &xlat, lon, lat);
 	float *t = produce_tile(tlon, tlat, true);
-	return nearest_neighbor_interpolation_at(t, 6000, 6000, xlon, xlat);
+    if (t == NULL)
+        return NO_DATA;
+    else
+	    return nearest_neighbor_interpolation_at(t, 6000, 6000, xlon, xlat);
 }
 
 double srtm4_wrt_ellipsoid(double lon, double lat)
 {
+	if (lat > 60 || lat < -60)
+        return NO_DATA;
 	int tlon, tlat;
 	float xlon, xlat;
 	get_tile_index_and_position(&tlon, &tlat, &xlon, &xlat, lon, lat);
 	float *t = produce_tile(tlon, tlat, true);
-	double srtm = bilinear_interpolation_at(t, 6000, 6000, xlon, xlat);
+    if (t == NULL)
+        return NO_DATA;
+    double srtm = bilinear_interpolation_at(t, 6000, 6000, xlon, xlat);
     double geoid = 0;
     geoid_height(&geoid, lat, lon);
     return srtm + geoid;
@@ -408,10 +383,14 @@ double srtm4_wrt_ellipsoid(double lon, double lat)
 
 double srtm4_nn_wrt_ellipsoid(double lon, double lat)
 {
+	if (lat > 60 || lat < -60)
+        return NO_DATA;
 	int tlon, tlat;
 	float xlon, xlat;
 	get_tile_index_and_position(&tlon, &tlat, &xlon, &xlat, lon, lat);
 	float *t = produce_tile(tlon, tlat, true);
+    if (t == NULL)
+        return NO_DATA;
 	double srtm = nearest_neighbor_interpolation_at(t, 6000, 6000, xlon, xlat);
     double geoid = 0;
     geoid_height(&geoid, lat, lon);
@@ -420,8 +399,8 @@ double srtm4_nn_wrt_ellipsoid(double lon, double lat)
 
 void srtm4_free_tiles(void)
 {
-	for (int j = 0; j < 72; j++)
-	for (int i = 0; i < 24; i++)
+	for (int j = 0; j < 360; j++)
+	for (int i = 0; i < 180; i++)
 		if (global_table_of_tiles[j][i])
 			free(global_table_of_tiles[j][i]);
 }
@@ -458,7 +437,7 @@ static void print_tile_filename(double lon, double lat)
 	int tlon, tlat;
 	float xlon, xlat;
 	get_tile_index_and_position(&tlon, &tlat, &xlon, &xlat, lon, lat);
-    printf("srtm_%02d_%02d.zip\n", tlon, tlat);
+    printf("srtm_%02d_%02d\n", tlon, tlat);
     return;
 }
 
