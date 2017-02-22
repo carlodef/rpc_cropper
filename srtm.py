@@ -14,7 +14,7 @@ import rpc_model
 import rpc_utils
 
 cfg = {}
-cfg['srtm_url'] = 'http://138.231.80.250:443/srtm/tiff'
+cfg['srtm_url'] = 'http://data_public:GDdci@data.cgiar-csi.org/srtm/tiles/GeoTIFF'
 cfg['srtm_dir'] = os.environ['SRTM4_CACHE'] if os.environ.has_key('SRTM4_CACHE') else os.path.join(os.path.expanduser('~'), '.srtm4')
 
 
@@ -75,10 +75,6 @@ def get_srtm_tile(srtm_tile, out_dir):
     # download the zip file
     srtm_tile_url = '%s/%s.zip' % (cfg['srtm_url'], srtm_tile)
     zip_path = os.path.join(out_dir, '%s.zip' % srtm_tile)
-
-    # add authorization header
-    srtm_tile_url = common.url_with_authorization_header(srtm_tile_url)
-
     common.download(zip_path, srtm_tile_url)
 
     # extract the tif file
