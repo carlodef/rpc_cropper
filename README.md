@@ -32,6 +32,7 @@ call to one of the python scripts.
 * gdal
 * g++
 * libtiff
+* pillow
 
 On Ubuntu 13.10, all the needed dependencies can be installed through the
 package manager:

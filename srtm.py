@@ -14,7 +14,7 @@ import rpc_model
 import rpc_utils
 
 cfg = {}
-cfg['srtm_url'] = 'http://data_public:GDdci@data.cgiar-csi.org/srtm/tiles/GeoTIFF'
+cfg['srtm_url'] = 'http://srtm.csi.cgiar.org/wp-content/uploads/files/srtm_5x5/TIFF'
 cfg['srtm_dir'] = os.environ['SRTM4_CACHE'] if os.environ.has_key('SRTM4_CACHE') else os.path.join(os.path.expanduser('~'), '.srtm4')
 
 
